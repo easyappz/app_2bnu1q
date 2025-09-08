@@ -1,21 +1,23 @@
-const jwt = require('jsonwebtoken');
+const { verifyJwt } = require('@src/utils/jwt');
 
-// Hardcoded for this step; will be moved to a proper config later
-const JWT_SECRET = 'REPLACE_WITH_STRONG_SECRET';
-
-module.exports = (req, res, next) => {
+module.exports = async function authMiddleware(req, res, next) {
   try {
-    const authHeader = req.headers['authorization'] || '';
-    const parts = authHeader.split(' ');
-
-    if (parts.length !== 2 || parts[0] !== 'Bearer') {
-      return res.status(401).json({ ok: false, error: 'Authorization header missing or malformed' });
+    const header = req.headers['authorization'];
+    if (!header) {
+      return res.status(401).json({ ok: false, error: 'Authorization header is missing' });
     }
 
-    const token = parts[1];
-    const payload = jwt.verify(token, JWT_SECRET);
+    let token = header;
+    if (typeof header === 'string' && header.toLowerCase().startsWith('bearer ')) {
+      token = header.slice(7);
+    }
 
-    req.user = { id: payload.id, email: payload.email, role: payload.role };
+    if (!token || typeof token !== 'string') {
+      return res.status(401).json({ ok: false, error: 'Invalid Authorization header format' });
+    }
+
+    const payload = verifyJwt(token);
+    req.user = payload;
     return next();
   } catch (error) {
     return res.status(401).json({ ok: false, error: error.message });

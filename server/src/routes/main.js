@@ -1,11 +1,14 @@
 const express = require('express');
+const { registerAdmin, login } = require('@src/controllers/authController');
+const { getSettings, updateSettings } = require('@src/controllers/settingsController');
+const authMiddleware = require('@src/middlewares/authMiddleware');
 
 const router = express.Router();
 
 // Root info
 router.get('/', async (req, res) => {
   try {
-    return res.status(200).json({ ok: true, message: 'API root. Stub routes are active.' });
+    return res.status(200).json({ ok: true, message: 'API root' });
   } catch (error) {
     return res.status(500).json({ ok: false, error: error.message });
   }
@@ -20,24 +23,12 @@ router.get('/status', async (req, res) => {
   }
 });
 
-function makeStubRouter(name) {
-  const r = express.Router();
-  r.all('*', async (req, res) => {
-    try {
-      return res.status(200).json({ ok: true, message: `${name} route stub` });
-    } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-  });
-  return r;
-}
+// Auth routes
+router.post('/auth/register-admin', registerAdmin);
+router.post('/auth/login', login);
 
-// Subrouters (controllers will be attached later via @src/controllers)
-router.use('/auth', makeStubRouter('auth'));
-router.use('/settings', makeStubRouter('settings'));
-router.use('/payments', makeStubRouter('payments'));
-router.use('/subscribers', makeStubRouter('subscribers'));
-router.use('/stats', makeStubRouter('stats'));
-router.use('/telegram', makeStubRouter('telegram'));
+// Settings routes (protected)
+router.get('/settings', authMiddleware, getSettings);
+router.put('/settings', authMiddleware, updateSettings);
 
 module.exports = router;

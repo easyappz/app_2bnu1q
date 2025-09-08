@@ -1,164 +1,160 @@
-openapi: 3.0.3
-info:
-  title: Telegram Payments Backend API
-  version: 0.1.0
-  description: Draft schema for future endpoints. Keep this file updated with any API changes.
-servers:
-  - url: /api
-paths:
-  /status:
-    get:
-      summary: API status check
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                  status:
-                    type: string
-                  timestamp:
-                    type: string
-                    format: date-time
-  /auth/login:
-    post:
-      summary: Admin login (draft)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                  format: email
-                password:
-                  type: string
-      responses:
-        '200':
-          description: JWT token issued
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                  token:
-                    type: string
-        '401':
-          description: Unauthorized
-  /auth/me:
-    get:
-      summary: Get current admin profile (draft)
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Profile
-  /settings:
-    get:
-      summary: Get bot/payment settings (draft)
-      responses:
-        '200':
-          description: Settings
-    put:
-      summary: Update bot/payment settings (draft)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      responses:
-        '200':
-          description: Updated settings
-  /telegram/webhook:
-    post:
-      summary: Telegram webhook endpoint (draft)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      responses:
-        '200':
-          description: Acknowledged
-  /telegram/set-webhook:
-    post:
-      summary: Set Telegram webhook URL (draft)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                url:
-                  type: string
-      responses:
-        '200':
-          description: Result
-  /payments:
-    get:
-      summary: List payments (draft)
-      parameters:
-        - name: status
-          in: query
-          schema:
+version: 1.0
+basePath: /api
+endpoints:
+  - method: POST
+    path: /auth/register-admin
+    description: One-time admin registration. If an admin already exists, returns an error.
+    headers: {}
+    request:
+      body:
+        type: object
+        required:
+          - email
+          - password
+        properties:
+          email:
             type: string
-            enum: [pending, paid, failed, canceled]
-        - name: limit
-          in: query
-          schema:
-            type: integer
-        - name: offset
-          in: query
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: List of payments
-  /subscribers:
-    get:
-      summary: List subscribers (draft)
-      parameters:
-        - name: status
-          in: query
-          schema:
+            example: admin@example.com
+          password:
             type: string
-            enum: [active, expired, revoked, pending]
-      responses:
-        '200':
-          description: List of subscribers
-  /stats/summary:
-    get:
-      summary: Summary statistics (draft)
-      parameters:
-        - name: from
-          in: query
-          schema:
+            example: strongpassword
+    responses:
+      201:
+        description: Admin created
+        body:
+          ok: true
+          user:
+            email: string
+            role: string
+      400:
+        description: Validation error or admin already exists
+        body:
+          ok: false
+          error: string
+      500:
+        description: Server error
+        body:
+          ok: false
+          error: string
+  - method: POST
+    path: /auth/login
+    description: Admin login. Returns JWT token and user info.
+    headers: {}
+    request:
+      body:
+        type: object
+        required:
+          - email
+          - password
+        properties:
+          email:
             type: string
-            format: date-time
-        - name: to
-          in: query
-          schema:
+            example: admin@example.com
+          password:
             type: string
-            format: date-time
-      responses:
-        '200':
-          description: Aggregated stats
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+            example: strongpassword
+    responses:
+      200:
+        description: Authenticated
+        body:
+          ok: true
+          token: string
+          user:
+            email: string
+            role: string
+      400:
+        description: Missing credentials
+        body:
+          ok: false
+          error: string
+      401:
+        description: Invalid credentials
+        body:
+          ok: false
+          error: string
+      500:
+        description: Server error
+        body:
+          ok: false
+          error: string
+  - method: GET
+    path: /settings
+    description: Get current settings. If none exist, a default record is created and returned.
+    headers:
+      Authorization:
+        required: true
+        description: Bearer <JWT token>
+    request:
+      query: {}
+    responses:
+      200:
+        description: Current settings
+        body:
+          ok: true
+          data:
+            type: object
+            properties:
+              _id: string
+              botToken: string
+              providerToken: string
+              channelId: string
+              channelUsername: string
+              productName: string
+              priceCents: number
+              currency: string
+              description: string
+              webhookUrl: string
+              createdAt: string
+              updatedAt: string
+      401:
+        description: Unauthorized
+        body:
+          ok: false
+          error: string
+      500:
+        description: Server error
+        body:
+          ok: false
+          error: string
+  - method: PUT
+    path: /settings
+    description: Update settings. Validates payment fields (providerToken, productName, priceCents, currency).
+    headers:
+      Authorization:
+        required: true
+        description: Bearer <JWT token>
+    request:
+      body:
+        type: object
+        properties:
+          botToken: string
+          providerToken: string
+          channelId: string
+          channelUsername: string
+          productName: string
+          priceCents: number
+          currency: string
+          description: string
+          webhookUrl: string
+    responses:
+      200:
+        description: Updated settings
+        body:
+          ok: true
+          data:
+            type: object
+      400:
+        description: Validation error
+        body:
+          ok: false
+          error: string
+      401:
+        description: Unauthorized
+        body:
+          ok: false
+          error: string
+      500:
+        description: Server error
+        body:
+          ok: false
+          error: string
