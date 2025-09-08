@@ -2,6 +2,7 @@ const express = require('express');
 const { registerAdmin, login } = require('@src/controllers/authController');
 const { getSettings, updateSettings } = require('@src/controllers/settingsController');
 const authMiddleware = require('@src/middlewares/authMiddleware');
+const telegramController = require('@src/controllers/telegramController');
 
 const router = express.Router();
 
@@ -30,5 +31,10 @@ router.post('/auth/login', login);
 // Settings routes (protected)
 router.get('/settings', authMiddleware, getSettings);
 router.put('/settings', authMiddleware, updateSettings);
+
+// Telegram webhook and management
+router.post('/telegram/webhook', telegramController.webhook);
+router.post('/telegram/set-webhook', authMiddleware, telegramController.setWebhook);
+router.post('/telegram/test-send', authMiddleware, telegramController.testSend);
 
 module.exports = router;

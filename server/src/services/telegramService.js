@@ -1,166 +1,88 @@
 const axios = require('axios');
 const Settings = require('@src/models/Settings');
 
-async function getActiveBotToken() {
+async function getSettingsOrThrow() {
   const settings = await Settings.findOne();
   if (!settings) {
-    throw new Error('Settings not found');
+    throw new Error('Settings are not configured');
   }
-  const botToken = (settings.botToken || '').trim();
-  if (!botToken) {
-    throw new Error('botToken is not set in Settings');
+  if (!settings.botToken || typeof settings.botToken !== 'string' || !settings.botToken.trim()) {
+    throw new Error('botToken is not configured in Settings');
   }
-  return { botToken, settings };
+  return settings;
 }
 
-function createBotAxios(botToken) {
-  return axios.create({
-    baseURL: `https://api.telegram.org/bot${botToken}/`,
-    timeout: 15000
-  });
+function buildApiUrl(token, method) {
+  return `https://api.telegram.org/bot${token}/${method}`;
+}
+
+async function sendInvoice(chatId, params) {
+  const settings = await getSettingsOrThrow();
+  if (!settings.providerToken || !settings.providerToken.trim()) {
+    throw new Error('providerToken is not configured in Settings');
+  }
+
+  const payload = {
+    chat_id: chatId,
+    title: params.title,
+    description: params.description,
+    payload: params.payload,
+    provider_token: settings.providerToken,
+    currency: params.currency,
+    prices: params.prices,
+    is_flexible: false
+  };
+
+  const url = buildApiUrl(settings.botToken, 'sendInvoice');
+  const { data } = await axios.post(url, payload, { timeout: 10000 });
+  return data;
+}
+
+async function answerPreCheckoutQuery(preCheckoutQueryId, ok, errorMessage) {
+  const settings = await getSettingsOrThrow();
+  const url = buildApiUrl(settings.botToken, 'answerPreCheckoutQuery');
+  const body = { pre_checkout_query_id: preCheckoutQueryId, ok: !!ok };
+  if (!ok && errorMessage) body.error_message = errorMessage;
+  const { data } = await axios.post(url, body, { timeout: 10000 });
+  return data;
+}
+
+async function createChatInviteLink(chatIdOrUsername, options) {
+  const settings = await getSettingsOrThrow();
+  const url = buildApiUrl(settings.botToken, 'createChatInviteLink');
+  const payload = {
+    chat_id: chatIdOrUsername,
+    ...options
+  };
+  const { data } = await axios.post(url, payload, { timeout: 10000 });
+  return data;
 }
 
 async function sendMessage(chatId, text, options = {}) {
-  try {
-    if ((typeof chatId !== 'string' && typeof chatId !== 'number') || (typeof text !== 'string' || !text.trim())) {
-      throw new Error('Invalid arguments: chatId and non-empty text are required');
-    }
-    const { botToken } = await getActiveBotToken();
-    const api = createBotAxios(botToken);
-    const payload = { chat_id: chatId, text: text.trim(), ...options };
-    const { data } = await api.post('sendMessage', payload);
-    if (!data || data.ok !== true) {
-      const d = data && data.description ? data.description : 'Unknown error';
-      throw new Error(`Telegram API error (sendMessage): ${d}`);
-    }
-    return data.result;
-  } catch (error) {
-    throw new Error(error.message);
-  }
+  const settings = await getSettingsOrThrow();
+  const url = buildApiUrl(settings.botToken, 'sendMessage');
+  const payload = {
+    chat_id: chatId,
+    text,
+    parse_mode: 'HTML',
+    ...options
+  };
+  const { data } = await axios.post(url, payload, { timeout: 10000 });
+  return data;
 }
 
-async function sendInvoice(params = {}) {
-  try {
-    const { botToken, settings } = await getActiveBotToken();
-
-    const chatId = params.chatId;
-    const title = typeof params.title === 'string' ? params.title.trim() : (settings.productName || 'Product');
-    const description = typeof params.description === 'string' ? params.description.trim() : (settings.description || '');
-    const payload = typeof params.payload === 'string' ? params.payload : 'invoice_payload';
-    const providerToken = typeof params.providerToken === 'string' && params.providerToken.trim() ? params.providerToken.trim() : (settings.providerToken || '');
-    const currency = typeof params.currency === 'string' ? params.currency.trim().toUpperCase() : (settings.currency || 'RUB');
-    const prices = Array.isArray(params.prices) && params.prices.length > 0
-      ? params.prices
-      : [{ label: title, amount: Number.isInteger(settings.priceCents) ? settings.priceCents : 0 }];
-
-    if ((typeof chatId !== 'string' && typeof chatId !== 'number')) {
-      throw new Error('sendInvoice: chatId is required');
-    }
-    if (!providerToken) {
-      throw new Error('sendInvoice: providerToken is not set');
-    }
-    if (!title) {
-      throw new Error('sendInvoice: title is required');
-    }
-    if (currency !== 'RUB') {
-      throw new Error('sendInvoice: currency must be RUB');
-    }
-
-    const api = createBotAxios(botToken);
-    const payloadBody = {
-      chat_id: chatId,
-      title,
-      description,
-      payload,
-      provider_token: providerToken,
-      currency,
-      prices
-    };
-
-    const { data } = await api.post('sendInvoice', payloadBody);
-    if (!data || data.ok !== true) {
-      const d = data && data.description ? data.description : 'Unknown error';
-      throw new Error(`Telegram API error (sendInvoice): ${d}`);
-    }
-    return data.result;
-  } catch (error) {
-    throw new Error(error.message);
-  }
-}
-
-async function answerPreCheckoutQuery(preCheckoutQueryId, ok, errorMessage = '') {
-  try {
-    const { botToken } = await getActiveBotToken();
-    const api = createBotAxios(botToken);
-
-    if (typeof preCheckoutQueryId !== 'string' || !preCheckoutQueryId.trim()) {
-      throw new Error('answerPreCheckoutQuery: preCheckoutQueryId is required');
-    }
-    if (typeof ok !== 'boolean') {
-      throw new Error('answerPreCheckoutQuery: ok must be boolean');
-    }
-
-    const payload = { pre_checkout_query_id: preCheckoutQueryId, ok };
-    if (!ok && errorMessage) {
-      payload.error_message = String(errorMessage);
-    }
-
-    const { data } = await api.post('answerPreCheckoutQuery', payload);
-    if (!data || data.ok !== true) {
-      const d = data && data.description ? data.description : 'Unknown error';
-      throw new Error(`Telegram API error (answerPreCheckoutQuery): ${d}`);
-    }
-    return data.result;
-  } catch (error) {
-    throw new Error(error.message);
-  }
-}
-
-async function createChatInviteLink(chatId, options = {}) {
-  try {
-    const { botToken } = await getActiveBotToken();
-    const api = createBotAxios(botToken);
-
-    if ((typeof chatId !== 'string' && typeof chatId !== 'number')) {
-      throw new Error('createChatInviteLink: chatId is required');
-    }
-
-    const payload = { chat_id: chatId, ...options };
-    const { data } = await api.post('createChatInviteLink', payload);
-    if (!data || data.ok !== true) {
-      const d = data && data.description ? data.description : 'Unknown error';
-      throw new Error(`Telegram API error (createChatInviteLink): ${d}`);
-    }
-    return data.result;
-  } catch (error) {
-    throw new Error(error.message);
-  }
-}
-
-async function setWebhook(webhookUrl) {
-  try {
-    const { botToken } = await getActiveBotToken();
-    const api = createBotAxios(botToken);
-
-    if (typeof webhookUrl !== 'string' || !webhookUrl.trim()) {
-      throw new Error('setWebhook: webhookUrl is required');
-    }
-
-    const { data } = await api.post('setWebhook', { url: webhookUrl.trim() });
-    if (!data || data.ok !== true) {
-      const d = data && data.description ? data.description : 'Unknown error';
-      throw new Error(`Telegram API error (setWebhook): ${d}`);
-    }
-    return data.result;
-  } catch (error) {
-    throw new Error(error.message);
-  }
+async function setWebhook(urlValue) {
+  const settings = await getSettingsOrThrow();
+  const url = buildApiUrl(settings.botToken, 'setWebhook');
+  const payload = { url: urlValue };
+  const { data } = await axios.post(url, payload, { timeout: 10000 });
+  return data;
 }
 
 module.exports = {
-  sendMessage,
   sendInvoice,
   answerPreCheckoutQuery,
   createChatInviteLink,
+  sendMessage,
   setWebhook
 };

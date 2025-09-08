@@ -1,16 +1,24 @@
 const mongoose = require('mongoose');
 
-const PaymentSchema = new mongoose.Schema({
-  telegramPaymentChargeId: { type: String },
-  providerPaymentChargeId: { type: String },
-  userId: { type: Number }, // Telegram user id
-  chatId: { type: Number },
-  amountCents: { type: Number },
-  currency: { type: String, default: 'RUB' },
-  status: { type: String, enum: ['pending', 'paid', 'failed', 'canceled'], default: 'pending' },
-  payload: { type: String },
-  createdAt: { type: Date, default: Date.now },
-});
+const PaymentSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true },
+    chatId: { type: String, required: true },
+    username: { type: String, default: '' },
+    firstName: { type: String, default: '' },
+    lastName: { type: String, default: '' },
+
+    telegramPaymentChargeId: { type: String, required: true },
+    providerPaymentChargeId: { type: String, required: true },
+
+    totalAmount: { type: Number, required: true },
+    currency: { type: String, required: true },
+    payload: { type: String, required: true },
+
+    status: { type: String, enum: ['paid'], default: 'paid' }
+  },
+  { timestamps: true }
+);
 
 PaymentSchema.index({ userId: 1, createdAt: -1 });
 

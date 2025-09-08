@@ -1,18 +1,23 @@
 const mongoose = require('mongoose');
 
-const SubscriberSchema = new mongoose.Schema({
-  userId: { type: Number, index: true },
-  username: { type: String },
-  firstName: { type: String },
-  lastName: { type: String },
-  chatId: { type: Number },
-  inviteLink: { type: String },
-  inviteExpireAt: { type: Date },
-  status: { type: String, enum: ['active', 'expired', 'revoked', 'pending'], default: 'pending' },
-  paymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
-  createdAt: { type: Date, default: Date.now },
-});
+const SubscriberSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true, unique: true },
+    chatId: { type: String, required: true },
+    username: { type: String, default: '' },
+    firstName: { type: String, default: '' },
+    lastName: { type: String, default: '' },
 
-SubscriberSchema.index({ userId: 1, status: 1 });
+    status: { type: String, enum: ['active', 'pending', 'inactive'], default: 'active' },
+
+    inviteLink: { type: String, default: '' },
+    inviteExpireAt: { type: Date, default: null },
+
+    lastPaymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment', default: null }
+  },
+  { timestamps: true }
+);
+
+SubscriberSchema.index({ userId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Subscriber', SubscriberSchema);

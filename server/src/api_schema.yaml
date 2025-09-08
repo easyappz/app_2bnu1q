@@ -158,3 +158,126 @@ endpoints:
         body:
           ok: false
           error: string
+  - method: POST
+    path: /telegram/webhook
+    description: Telegram webhook callback. Handles /buy command, pre_checkout_query confirmation, and successful payments.
+    headers: {}
+    request:
+      body:
+        type: object
+        description: Telegram Update object
+        example:
+          update_id: 123456789
+          message:
+            message_id: 1
+            from:
+              id: 11111111
+              is_bot: false
+              first_name: John
+              last_name: Doe
+              username: johndoe
+              language_code: en
+            chat:
+              id: 11111111
+              type: private
+            date: 1699999999
+            text: /buy
+    responses:
+      200:
+        description: Webhook processed
+        body:
+          ok: true
+          processed: boolean
+          type: string
+      500:
+        description: Processing error
+        body:
+          ok: false
+          error: string
+  - method: POST
+    path: /telegram/set-webhook
+    description: Set Telegram webhook to a specified URL. Requires JWT.
+    headers:
+      Authorization:
+        required: true
+        description: Bearer <JWT token>
+    request:
+      body:
+        type: object
+        properties:
+          url:
+            type: string
+            description: Optional webhook URL. If omitted, Settings.webhookUrl will be used.
+            example: https://your-domain.com/api/telegram/webhook
+    responses:
+      200:
+        description: Result from Telegram API setWebhook
+        body:
+          ok: true
+          data:
+            ok: boolean
+            result: boolean
+            description: string
+      400:
+        description: Missing URL
+        body:
+          ok: false
+          error: string
+      401:
+        description: Unauthorized
+        body:
+          ok: false
+          error: string
+      500:
+        description: Server error
+        body:
+          ok: false
+          error: string
+  - method: POST
+    path: /telegram/test-send
+    description: Send a test message using botToken from Settings. Requires JWT.
+    headers:
+      Authorization:
+        required: true
+        description: Bearer <JWT token>
+    request:
+      body:
+        type: object
+        required:
+          - chat_id
+        properties:
+          chat_id:
+            type: string
+            example: "123456789"
+          text:
+            type: string
+            example: Hello from server!
+    responses:
+      200:
+        description: Message sent via Telegram API
+        body:
+          ok: true
+          data:
+            ok: boolean
+            result:
+              message_id: number
+              chat:
+                id: number
+                type: string
+              date: number
+              text: string
+      400:
+        description: Validation error
+        body:
+          ok: false
+          error: string
+      401:
+        description: Unauthorized
+        body:
+          ok: false
+          error: string
+      500:
+        description: Server error
+        body:
+          ok: false
+          error: string
