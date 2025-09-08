@@ -200,6 +200,179 @@ paths:
               example:
                 ok: false
                 error: Unexpected error details
+  /settings:
+    get:
+      summary: Get settings
+      description: Returns current Settings object.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, data]
+                properties:
+                  ok: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      botToken: { type: string }
+                      providerToken: { type: string }
+                      channelId: { type: string }
+                      channelUsername: { type: string }
+                      productName: { type: string }
+                      priceCents: { type: integer }
+                      currency:
+                        type: string
+                        enum: [RUB]
+                      description: { type: string }
+                      webhookUrl: { type: string }
+              example:
+                ok: true
+                data:
+                  botToken: "123456:ABCDEF"
+                  providerToken: "381764:TEST-PROVIDER-TOKEN"
+                  channelId: "-1001234567890"
+                  channelUsername: "my_channel"
+                  productName: "Access to channel"
+                  priceCents: 12900
+                  currency: RUB
+                  description: "Monthly subscription"
+                  webhookUrl: "https://example.com/api/telegram/webhook"
+        '401':
+          description: Unauthorized
+    put:
+      summary: Update settings
+      description: |
+        Updates Settings. Payment fields must be provided together. Aliases are supported for backward compatibility and are deprecated.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [providerToken, productName, priceCents, currency]
+              properties:
+                botToken:
+                  type: string
+                  description: Telegram bot token
+                providerToken:
+                  type: string
+                  description: Payments provider token (Telegram Payments provider_token)
+                channelId:
+                  type: string
+                channelUsername:
+                  type: string
+                productName:
+                  type: string
+                priceCents:
+                  type: integer
+                currency:
+                  type: string
+                  enum: [RUB]
+                  description: Only RUB is supported
+                description:
+                  type: string
+                webhookUrl:
+                  type: string
+                telegramBotToken:
+                  type: string
+                  deprecated: true
+                  description: Alias for botToken (deprecated). Will be mapped to botToken.
+                telegramWebhookUrl:
+                  type: string
+                  deprecated: true
+                  description: Alias for webhookUrl (deprecated). Will be mapped to webhookUrl.
+                provider_token:
+                  type: string
+                  deprecated: true
+                  description: Alias for providerToken (deprecated). Will be mapped to providerToken.
+            examples:
+              canonical:
+                summary: Canonical fields
+                value:
+                  botToken: "123456:ABCDEF"
+                  providerToken: "381764:LIVE:AAA"
+                  channelId: "-1001234567890"
+                  channelUsername: "my_channel"
+                  productName: "Access to channel"
+                  priceCents: 9900
+                  currency: RUB
+                  description: "Monthly subscription"
+                  webhookUrl: "https://example.com/api/telegram/webhook"
+              withAliases:
+                summary: Deprecated aliases are accepted
+                value:
+                  telegramBotToken: "123456:ABCDEF"
+                  provider_token: "381764:LIVE:AAA"
+                  productName: "Access to channel"
+                  priceCents: 9900
+                  currency: RUB
+                  telegramWebhookUrl: "https://example.com/api/telegram/webhook"
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, data]
+                properties:
+                  ok: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      botToken: { type: string }
+                      providerToken: { type: string }
+                      channelId: { type: string }
+                      channelUsername: { type: string }
+                      productName: { type: string }
+                      priceCents: { type: integer }
+                      currency:
+                        type: string
+                        enum: [RUB]
+                      description: { type: string }
+                      webhookUrl: { type: string }
+              example:
+                ok: true
+                data:
+                  botToken: "123456:ABCDEF"
+                  providerToken: "381764:LIVE:AAA"
+                  channelId: "-1001234567890"
+                  channelUsername: "my_channel"
+                  productName: "Access to channel"
+                  priceCents: 9900
+                  currency: RUB
+                  description: "Monthly subscription"
+                  webhookUrl: "https://example.com/api/telegram/webhook"
+        '400':
+          description: Bad request (validation error)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, error]
+                properties:
+                  ok: { type: boolean }
+                  error: { type: string }
+              examples:
+                emptyProviderToken:
+                  summary: providerToken is empty
+                  value:
+                    ok: false
+                    error: "providerToken is required and must be a non-empty string Required together: providerToken, productName, priceCents, currency."
+                wrongCurrency:
+                  summary: currency must be RUB
+                  value:
+                    ok: false
+                    error: "currency must be RUB Required together: providerToken, productName, priceCents, currency."
+        '401':
+          description: Unauthorized
   /payments:
     get:
       summary: List payments

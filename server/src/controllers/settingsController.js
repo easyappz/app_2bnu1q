@@ -81,7 +81,37 @@ async function updateSettings(req, res) {
 
     const settings = await ensureDefaultSettings();
 
+    // Prepare update object with backward-compatible aliases
     const update = {};
+
+    // Aliases (deprecated):
+    // telegramBotToken -> botToken
+    if (
+      Object.prototype.hasOwnProperty.call(body, 'telegramBotToken') &&
+      !Object.prototype.hasOwnProperty.call(body, 'botToken')
+    ) {
+      update.botToken = sanitizeString(body.telegramBotToken);
+    }
+
+    // telegramWebhookUrl -> webhookUrl
+    if (
+      Object.prototype.hasOwnProperty.call(body, 'telegramWebhookUrl') &&
+      !Object.prototype.hasOwnProperty.call(body, 'webhookUrl')
+    ) {
+      update.webhookUrl = sanitizeString(body.telegramWebhookUrl);
+    }
+
+    // provider_token -> providerToken
+    if (
+      Object.prototype.hasOwnProperty.call(body, 'provider_token') &&
+      !Object.prototype.hasOwnProperty.call(body, 'providerToken')
+    ) {
+      update.providerToken = sanitizeString(body.provider_token);
+    }
+
+    // Note: yookassaShopId / yookassaSecret are intentionally ignored (not saved to Settings)
+
+    // Canonical fields processing (canonicals override aliases if both provided)
     for (const key of allowedFields) {
       if (Object.prototype.hasOwnProperty.call(body, key)) {
         if (key === 'priceCents') {
@@ -102,21 +132,18 @@ async function updateSettings(req, res) {
 
     const paymentValidationErrors = validatePaymentFields(resulting);
     if (paymentValidationErrors.length > 0) {
-      return res.status(400).json({ ok: false, error: paymentValidationErrors.join('; ') });
+      const hint = 'Required together: providerToken, productName, priceCents, currency.';
+      return res.status(400).json({ ok: false, error: paymentValidationErrors.join('; ') + ' ' + hint });
     }
 
     // Additional optional validations
     if (update.botToken !== undefined && typeof resulting.botToken !== 'string') {
       return res.status(400).json({ ok: false, error: 'botToken must be a string' });
     }
-    if (
-      resulting.channelId && typeof resulting.channelId !== 'string'
-    ) {
+    if (resulting.channelId && typeof resulting.channelId !== 'string') {
       return res.status(400).json({ ok: false, error: 'channelId must be a string' });
     }
-    if (
-      resulting.channelUsername && typeof resulting.channelUsername !== 'string'
-    ) {
+    if (resulting.channelUsername && typeof resulting.channelUsername !== 'string') {
       return res.status(400).json({ ok: false, error: 'channelUsername must be a string' });
     }
 
