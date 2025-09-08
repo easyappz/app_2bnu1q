@@ -3,7 +3,7 @@ info:
   title: Admin API
   version: 1.0.0
   description: |
-    Admin endpoints for Payments, Subscribers and Stats.
+    Admin endpoints for authentication, payments, subscribers and stats.
 
 servers:
   - url: /api
@@ -19,45 +19,97 @@ security:
   - BearerAuth: []
 
 paths:
-  /auth/login:
-    post:
-      summary: Admin login
-      description: Authenticate admin user by email and password.
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, password]
-              properties:
-                email: { type: string, format: email }
-                password: { type: string, minLength: 6 }
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok: { type: boolean }
-                  token: { type: string }
-              example:
-                ok: true
-                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              example:
-                ok: false
-                error: "Invalid credentials"
   /auth/register-admin:
     post:
       summary: Create the first admin
-      description: Create an admin account if none exists yet.
+      description: Create an admin account if none exists yet. Public endpoint.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, user]
+                properties:
+                  ok:
+                    type: boolean
+                  user:
+                    type: object
+                    required: [email, role]
+                    properties:
+                      email:
+                        type: string
+                        format: email
+                      role:
+                        type: string
+                        enum: [admin]
+              example:
+                ok: true
+                user:
+                  email: admin@example.com
+                  role: admin
+        '400':
+          description: Bad request (validation error or admin already exists)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, error]
+                properties:
+                  ok:
+                    type: boolean
+                  error:
+                    type: string
+              examples:
+                adminExists:
+                  value:
+                    ok: false
+                    error: Admin already exists. Registration is allowed only once.
+                invalidEmail:
+                  value:
+                    ok: false
+                    error: Email is required
+                weakPassword:
+                  value:
+                    ok: false
+                    error: Password must be at least 6 characters long
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, error]
+                properties:
+                  ok:
+                    type: boolean
+                  error:
+                    type: string
+              example:
+                ok: false
+                error: Unexpected error details
+  /auth/login:
+    post:
+      summary: Admin login
+      description: Authenticate admin user by email and password. Public endpoint.
       security: []
       requestBody:
         required: true
@@ -67,8 +119,12 @@ paths:
               type: object
               required: [email, password]
               properties:
-                email: { type: string, format: email }
-                password: { type: string, minLength: 6 }
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
       responses:
         '200':
           description: Success
@@ -76,19 +132,74 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [ok, token, user]
                 properties:
-                  ok: { type: boolean }
-                  message: { type: string }
+                  ok:
+                    type: boolean
+                  token:
+                    type: string
+                    description: JWT token to be sent as Authorization: Bearer <token>
+                  user:
+                    type: object
+                    required: [email, role]
+                    properties:
+                      email:
+                        type: string
+                        format: email
+                      role:
+                        type: string
+                        enum: [admin]
               example:
                 ok: true
-                message: Admin created
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                user:
+                  email: admin@example.com
+                  role: admin
         '400':
-          description: Bad request
+          description: Bad request (missing email or password)
           content:
             application/json:
+              schema:
+                type: object
+                required: [ok, error]
+                properties:
+                  ok:
+                    type: boolean
+                  error:
+                    type: string
               example:
                 ok: false
-                error: "Admin already exists"
+                error: Email and password are required
+        '401':
+          description: Unauthorized (invalid credentials)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, error]
+                properties:
+                  ok:
+                    type: boolean
+                  error:
+                    type: string
+              example:
+                ok: false
+                error: Invalid email or password
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, error]
+                properties:
+                  ok:
+                    type: boolean
+                  error:
+                    type: string
+              example:
+                ok: false
+                error: Unexpected error details
   /payments:
     get:
       summary: List payments
