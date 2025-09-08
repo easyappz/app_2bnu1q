@@ -19,6 +19,76 @@ security:
   - BearerAuth: []
 
 paths:
+  /auth/login:
+    post:
+      summary: Admin login
+      description: Authenticate admin user by email and password.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 6 }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  token: { type: string }
+              example:
+                ok: true
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              example:
+                ok: false
+                error: "Invalid credentials"
+  /auth/register-admin:
+    post:
+      summary: Create the first admin
+      description: Create an admin account if none exists yet.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 6 }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  message: { type: string }
+              example:
+                ok: true
+                message: Admin created
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              example:
+                ok: false
+                error: "Admin already exists"
   /payments:
     get:
       summary: List payments
