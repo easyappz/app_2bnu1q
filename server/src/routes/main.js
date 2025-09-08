@@ -3,6 +3,9 @@ const { registerAdmin, login } = require('@src/controllers/authController');
 const { getSettings, updateSettings } = require('@src/controllers/settingsController');
 const authMiddleware = require('@src/middlewares/authMiddleware');
 const telegramController = require('@src/controllers/telegramController');
+const paymentsController = require('@src/controllers/paymentsController');
+const subscribersController = require('@src/controllers/subscribersController');
+const statsController = require('@src/controllers/statsController');
 
 const router = express.Router();
 
@@ -36,5 +39,15 @@ router.put('/settings', authMiddleware, updateSettings);
 router.post('/telegram/webhook', telegramController.webhook);
 router.post('/telegram/set-webhook', authMiddleware, telegramController.setWebhook);
 router.post('/telegram/test-send', authMiddleware, telegramController.testSend);
+
+// Payments (protected)
+router.get('/payments', authMiddleware, paymentsController.listPayments);
+
+// Subscribers (protected)
+router.get('/subscribers', authMiddleware, subscribersController.listSubscribers);
+
+// Stats (protected)
+router.get('/stats/summary', authMiddleware, statsController.getSummary);
+router.get('/stats/timeseries', authMiddleware, statsController.getTimeseries);
 
 module.exports = router;

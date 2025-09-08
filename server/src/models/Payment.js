@@ -2,24 +2,18 @@ const mongoose = require('mongoose');
 
 const PaymentSchema = new mongoose.Schema(
   {
-    userId: { type: String, required: true },
-    chatId: { type: String, required: true },
-    username: { type: String, default: '' },
-    firstName: { type: String, default: '' },
-    lastName: { type: String, default: '' },
-
-    telegramPaymentChargeId: { type: String, required: true },
-    providerPaymentChargeId: { type: String, required: true },
-
-    totalAmount: { type: Number, required: true },
-    currency: { type: String, required: true },
-    payload: { type: String, required: true },
-
-    status: { type: String, enum: ['paid'], default: 'paid' }
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subscriber', required: false },
+    amountCents: { type: Number, required: true, min: 0 },
+    currency: { type: String, default: 'USD' },
+    status: { type: String, enum: ['paid', 'failed'], required: true },
+    meta: { type: Object }
   },
-  { timestamps: true }
+  {
+    timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
+  }
 );
 
-PaymentSchema.index({ userId: 1, createdAt: -1 });
+PaymentSchema.index({ createdAt: 1 });
+PaymentSchema.index({ status: 1 });
 
 module.exports = mongoose.model('Payment', PaymentSchema);
